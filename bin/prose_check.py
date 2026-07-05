@@ -338,6 +338,30 @@ def check_markdown(markdown_text, server, bundle):
     return check_blocks(extract_blocks(markdown_text), server, bundle)
 
 
+def _value_line(json_text, key):
+    """1-indexed line where a flat JSON key's pair appears."""
+    idx = json_text.find('"' + key + '"')
+    if idx < 0:
+        return 1
+    return json_text.count("\n", 0, idx) + 1
+
+
+def extract_i18n(json_text, ignore=None):
+    """Extract checkable string values from a flat i18n locale JSON as Blocks."""
+    ignore = ignore or (lambda key: False)
+    data = json.loads(json_text)
+    blocks = []
+    for key, value in data.items():
+        if not isinstance(value, str) or ignore(key):
+            continue
+        text = value  # placeholder masking added in Task 4
+        if not text.strip():
+            continue
+        line = _value_line(json_text, key)
+        blocks.append(Block(text, line, [(text, line)]))
+    return blocks
+
+
 def _format_finding(path, finding, severity):
     rule_id = finding.get("rule", {}).get("id", "?")
     message = finding.get("message", "")
