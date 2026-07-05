@@ -129,7 +129,7 @@ From the maintainer's answers. `level=picky` unlocks the pedantic rules;
 | Language | en-US | -- |
 | Serial (Oxford) comma | require | blocking |
 | One space after sentence punctuation | enforce | blocking |
-| Em-dash usage | flag (custom rule) | blocking |
+| Em-dash usage | flag (client-side local rule) | blocking |
 | Spelling | en-US dict + shared allowlist | blocking |
 | Passive voice | flag | advisory |
 | Contractions | allow | off |
@@ -193,4 +193,27 @@ maintainer's rules forbid), so the config is calibrated before it can block.
 
 Prose-*drafting* helpers (generating issue bodies, PR bodies, review comments)
 are an authoring aid, not a linter, and belong in the cc-orchestrator workflow
-tooling. Tracked as a separate cc-orchestrator issue, not in this spec.
+tooling. Tracked as cc-orchestrator issue #219, not in this spec.
+
+## Implementation notes (as built 2026-07-05)
+
+Deviations from the design above, discovered while building against a live
+`erikvl87/languagetool` server:
+
+- **Client filename is `bin/prose_check.py`** (underscore), so it is importable
+  by the test suite; the design's `prose-check.py` references mean this file.
+- **Em-dash and one-space are client-side local rules, not LanguageTool XML
+  rules.** The free server has no em-dash rule and does not flag double spaces
+  even at `level=picky`, so both are deterministic regex rules in the client
+  (`LOCAL_EM_DASH`, `LOCAL_DOUBLE_SPACE`), emitting LanguageTool-shaped matches
+  through the same offset/severity pipeline. No `config/<lang>/custom-rules/`
+  dir is needed and it was removed.
+- **The dictionary is a client-side post-filter.** The free server has no
+  per-request custom dictionary, so allowlisted words are dropped from
+  spelling (TYPOS) matches client-side after the check.
+- **Resolved rule IDs:** `SERIAL_COMMA_ON` (require Oxford comma, blocking),
+  `MORFOLOGIK_RULE_EN_US` (spelling, blocking), `PASSIVE_VOICE_SIMPLE`
+  (advisory). Wordiness / weasel-word rules are largely premium-gated on the
+  free server, so advisory wordiness coverage is partial (documented limit).
+- **Findings print as `path:line`** (line-level). markdown-it does not expose
+  reliable source columns for inline content, so precise columns are deferred.

@@ -1,0 +1,9 @@
+# Global allowlist -- words dropped from spelling findings in EVERY language.
+# One word per line; comparison is case-insensitive. Project nouns and tools
+# that LanguageTool's dictionary does not know. Keep sorted-ish and deduped.
+Audiobookshelf
+Immich
+LanguageTool
+OrbStack
+Unraid
+markdownlint

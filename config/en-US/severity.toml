@@ -1,0 +1,30 @@
+# LanguageTool bundle for American English (en-US).
+# Rule IDs were resolved against a running erikvl87/languagetool server.
+
+language = "en-US"
+
+# `picky` unlocks the pedantic style rule set (passive voice, readability, ...).
+level = "picky"
+
+# Rules to force-enable (belt-and-suspenders; SERIAL_COMMA_ON is already active
+# at picky, but pinning it keeps the require-Oxford-comma behavior explicit).
+enabled_rules = ["SERIAL_COMMA_ON"]
+
+# Rules / categories never surfaced.
+disabled_rules = []
+disabled_categories = []
+
+# Rule IDs / category IDs that FAIL a commit. Everything else is advisory
+# (printed, exit 0). Only deterministic, low-false-positive rules block:
+#   LOCAL_EM_DASH         client-side: flag em-dashes (house style)
+#   LOCAL_DOUBLE_SPACE    client-side: one space after sentence punctuation
+#   SERIAL_COMMA_ON       server: require the Oxford/serial comma
+#   MORFOLOGIK_RULE_EN_US server: spelling (TYPOS)
+# Noisy style rules (PASSIVE_VOICE_SIMPLE, readability, wordiness) stay advisory
+# by being absent here. To calibrate advisory-only first, empty this list.
+blocking = [
+    "LOCAL_EM_DASH",
+    "LOCAL_DOUBLE_SPACE",
+    "SERIAL_COMMA_ON",
+    "MORFOLOGIK_RULE_EN_US",
+]
