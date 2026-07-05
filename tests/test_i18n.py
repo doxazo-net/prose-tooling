@@ -54,3 +54,13 @@ def test_glob_and_exact_key_ignored():
     ignore = key_ignorer(["*.tooltip", "*.log_*", "col.mbid"])
     texts = [b.text for b in extract_i18n(js, ignore)]
     assert texts == ["This regular copy is checked."]
+
+
+def test_nested_i18n_file_warns_and_does_not_silently_pass(capsys, tmp_path):
+    import prose_check
+    f = tmp_path / "nested.json"
+    f.write_text('{"section": {"title": "Nested value here."}}\n')
+    code = prose_check.main(["--no-autostart", "--format", "i18n", str(f)])
+    err = capsys.readouterr().err
+    assert code == 2 or code == 1  # non-zero: did not silently pass
+    assert "no flat string values" in err

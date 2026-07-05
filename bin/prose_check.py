@@ -255,6 +255,10 @@ def load_bundle(config_dir, bundle_name):
     config_dir = Path(config_dir)
     with open(config_dir / bundle_name / "severity.toml", "rb") as handle:
         bundle = tomllib.load(handle)
+    if "language" not in bundle:
+        raise KeyError(
+            f"severity.toml for bundle '{bundle_name}' must set a 'language' key"
+        )
     bundle.setdefault("level", "picky")
     for key in ("enabled_rules", "disabled_rules", "disabled_categories", "blocking"):
         bundle.setdefault(key, [])
@@ -331,6 +335,9 @@ def check_blocks(blocks, server, bundle):
             enriched = dict(match)
             enriched["line"] = line_for_offset(spans, match.get("offset", 0))
             findings.append(enriched)
+    # Local rules scan the RAW text children (genuine source whitespace), not
+    # the reconstructed combined text, so inline-code removal cannot fabricate
+    # findings (e.g. a spurious double space after a period).
     for block in blocks:
         for content, line in block.children:
             for match in local_matches_text(content):
@@ -452,6 +459,14 @@ def main(argv=None):
         try:
             if fmt == "i18n":
                 blocks = extract_i18n(source, ignore)
+                if not blocks and source.strip():
+                    print(
+                        f"prose-check: {path}: no flat string values found "
+                        "(nested locale JSON is not supported yet)",
+                        file=sys.stderr,
+                    )
+                    had_blocking = True
+                    continue
             else:
                 blocks = extract_blocks(source)
             findings = check_blocks(blocks, args.server, bundle)
