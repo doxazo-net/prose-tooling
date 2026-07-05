@@ -156,8 +156,9 @@ def line_for_offset(spans, offset):
 _EM_DASH_RE = re.compile("—")
 _DOUBLE_SPACE_RE = re.compile(r"(?<=[.!?]) {2,}")
 
-# i18n placeholder masking: {name}, {{name}}, %s, %d, %(name)s -> a single space.
-_PLACEHOLDER_RE = re.compile(r"\{\{[^}]*\}\}|\{[^}]*\}|%\([^)]*\)[sd]|%[sd]")
+# i18n placeholder masking: {name}, {{name}}, %s, %d, %(name)s (plus flanking whitespace)
+# -> a single space, so masking never manufactures a double space after a period.
+_PLACEHOLDER_RE = re.compile(r"\s*(?:\{\{[^}]*\}\}|\{[^}]*\}|%\([^)]*\)[sd]|%[sd])\s*")
 
 
 def _mask_placeholders(value):

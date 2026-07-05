@@ -32,3 +32,11 @@ def test_printf_and_double_brace_masked():
     texts = [b.text for b in extract_i18n(js)]
     assert not any("%s" in t or "%d" in t for t in texts)
     assert not any("{{name}}" in t for t in texts)
+
+
+def test_masking_does_not_manufacture_double_space():
+    from prose_check import local_matches_text
+    js = '{\n  "msg": "Done. {name} thanks."\n}\n'
+    text = extract_i18n(js)[0].text
+    assert "  " not in text  # no double space
+    assert not any(m["rule"]["id"] == "LOCAL_DOUBLE_SPACE" for m in local_matches_text(text))
