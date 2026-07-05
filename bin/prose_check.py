@@ -412,10 +412,15 @@ def main(argv=None):
         action="store_true",
         help="do not try to start the LanguageTool container if it is down",
     )
+    parser.add_argument("--format", choices=["markdown", "i18n"], default=None)
+    parser.add_argument("--profile", choices=["docs", "microcopy"], default=None)
+    parser.add_argument(
+        "--i18n-ignore",
+        default=None,
+        help="path to a .prose-lint.toml with [i18n] ignore_keys",
+    )
     args = parser.parse_args(argv)
 
-    bundle = load_bundle(args.config_dir, args.lang)
-    blocking_ids = set(bundle["blocking"])
     had_blocking = False
 
     if not args.no_autostart and args.files and not ensure_server(args.server):
@@ -427,15 +432,29 @@ def main(argv=None):
         print("Start it manually with: bin/prose-lint-server.sh start", file=sys.stderr)
         return 2
 
+    profile = args.profile
+    ignore_patterns = load_i18n_ignore(args.i18n_ignore) if args.i18n_ignore else []
+    ignore = key_ignorer(ignore_patterns)
+
     for path in args.files:
+        fmt = select_extractor(path, args.format)
+        bundle_name = args.lang
+        if profile == "microcopy" or (profile is None and fmt == "i18n"):
+            bundle_name = f"{args.lang}-microcopy"
+        bundle = load_bundle(args.config_dir, bundle_name)
+        blocking_ids = set(bundle["blocking"])
         try:
-            markdown_text = Path(path).read_text(encoding="utf-8")
+            source = Path(path).read_text(encoding="utf-8")
         except OSError as exc:
             print(f"prose-check: cannot read {path}: {exc}", file=sys.stderr)
             had_blocking = True
             continue
         try:
-            findings = check_markdown(markdown_text, args.server, bundle)
+            if fmt == "i18n":
+                blocks = extract_i18n(source, ignore)
+            else:
+                blocks = extract_blocks(source)
+            findings = check_blocks(blocks, args.server, bundle)
         except ServerUnreachable as exc:
             print(
                 f"prose-check: LanguageTool server unreachable at {args.server}: {exc}",

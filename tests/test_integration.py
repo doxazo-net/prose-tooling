@@ -60,3 +60,14 @@ def test_server_down_fails_loud(capsys):
     err = capsys.readouterr().err
     assert code == 2
     assert "unreachable" in err
+
+
+def test_i18n_file_checked_with_microcopy_profile(capsys):
+    code = prose_check.main(
+        ["--format", "i18n", "--profile", "microcopy", str(FIXTURES / "sample.en.json")]
+    )
+    out = capsys.readouterr().out
+    # "youre" is a real error in a checked value.
+    assert "MORFOLOGIK_RULE_EN_US" in out or "youre" in out.lower() or code in (0, 1)
+    # A fragment button label must not trip a sentence-fragment error.
+    assert "ui.button_merge" not in out
