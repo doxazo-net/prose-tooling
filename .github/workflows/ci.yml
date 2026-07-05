@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      languagetool:
+        # Pinned by digest for reproducibility (erikvl87/languagetool:latest at pin time).
+        image: erikvl87/languagetool@sha256:ef8fa12cbd485166c9ceeb7139d76d56d07707a624da6bb1fc1fbb5411750527
+        ports:
+          - 8081:8010
+        env:
+          Java_Xmx: 1g
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Wait for LanguageTool
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8081/v2/languages >/dev/null 2>&1; then
+              echo "LanguageTool ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "LanguageTool did not become ready" >&2; exit 1
+      - name: Run tests
+        env:
+          PROSE_LINT_SERVER: http://localhost:8081
+        run: python -m pytest -v
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install ruff
+        run: pip install ruff
+      - name: ruff
+        run: ruff check bin/ tests/
+      - name: shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          # Guard the glob so an empty bin/ (no .sh files) does not fail the job
+          # on an unexpanded literal path.
+          if ls bin/*.sh >/dev/null 2>&1; then
+            shellcheck bin/*.sh
+          else
+            echo "No shell scripts in bin/, skipping shellcheck"
+          fi

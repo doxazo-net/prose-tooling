@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+#
+# CodeRabbit auto-review is disabled: CodeRabbit reviews only when explicitly
+# requested with `@coderabbitai review`. It will not auto-review new or updated
+# pull requests. (Manual review commands remain available.)
+language: en-US
+reviews:
+  auto_review:
+    enabled: false
