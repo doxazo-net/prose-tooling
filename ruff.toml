@@ -1,0 +1,4 @@
+# Match the org convention: catch real errors (pyflakes) and ambiguous names,
+# not stylistic noise.
+[lint]
+select = ["F", "E741"]
