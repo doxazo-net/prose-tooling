@@ -23,7 +23,9 @@ bin/prose-lint-server.sh start
 ./.venv/bin/python bin/prose_check.py path/to/doc.md
 ```
 
-Exit codes: `0` clean or advisory-only, `1` a blocking finding, `2` server unreachable.
+Exit codes: `0` clean or advisory-only, `1` a blocking finding, `2` server
+unreachable. The client auto-starts the container if it is stopped (one-time
+~15s cost on the first commit after a stop); pass `--no-autostart` to disable.
 
 ## How it works
 
