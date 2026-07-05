@@ -1,0 +1,6 @@
+{
+  "ui.title": "Manage youre artists",
+  "ui.tooltip": "This teh jargon-y tooltip",
+  "ui.button_merge": "Confirm merge",
+  "ui.status": "Loaded {count} of {total} items."
+}

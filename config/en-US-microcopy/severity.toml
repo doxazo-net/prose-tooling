@@ -1,0 +1,21 @@
+# Microcopy profile for UI strings (labels, headers, short imperatives).
+# Extends the docs en-US disables with rules that misfire on fragments.
+language = "en-US"
+level = "picky"
+enabled_rules = ["SERIAL_COMMA_ON"]
+disabled_rules = [
+    "EN_QUOTES", "TWO_HYPHENS", "DASH_RULE", "ARROWS", "MULTIPLICATION_SIGN",
+    "ID_CASING", "DOUBLE_PUNCTUATION", "WHITESPACE_RULE", "CONSECUTIVE_SPACES",
+    "COMMA_PARENTHESIS_WHITESPACE", "SENTENCE_WHITESPACE",
+    # Microcopy-specific: labels/headers are fragments, not sentences.
+    "UPPERCASE_SENTENCE_START", "PUNCTUATION_PARAGRAPH_END",
+    "MISSING_PERIOD_AFTER_ABBREVIATION",
+    # Calibrated on stillwater en.json (2026-07-05):
+    "ELLIPSIS",                          # UI uses literal "..." intentionally
+    "ENGLISH_WORD_REPEAT_BEGINNING_RULE",  # FP: independent UI strings, not a flowing doc
+]
+disabled_categories = []
+# Blocking = deterministic rules only. Calibration on stillwater en.json showed
+# ZERO blocking findings (no em-dashes, serial commas already correct), so
+# adoption is frictionless. Spelling stays advisory.
+blocking = ["LOCAL_EM_DASH", "SERIAL_COMMA_ON"]

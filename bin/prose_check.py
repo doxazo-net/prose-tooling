@@ -10,6 +10,7 @@ offset maps back to a source line via the block it falls in.
 """
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -30,6 +31,12 @@ _MD = MarkdownIt("commonmark").enable("table")
 # A leading YAML frontmatter block: `---` on line 1, prose lines, closing `---`.
 _FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---[ \t]*(?:\n|\Z)", re.DOTALL)
 
+# Suppression directives (HTML comments; never rendered). Matched exactly so
+# `disable` does not also match `disable-line`.
+_DIRECTIVE_RE = re.compile(
+    r"<!--\s*prose-lint-(disable-next-line|disable-line|disable|enable)\s*-->"
+)
+
 
 def _strip_frontmatter(markdown_text):
     """Return (body, leading_line_count) with any YAML frontmatter removed."""
@@ -37,6 +44,27 @@ def _strip_frontmatter(markdown_text):
     if not match:
         return markdown_text, 0
     return markdown_text[match.end():], match.group(0).count("\n")
+
+
+def suppressed_lines(text):
+    """Return the set of 1-indexed source lines to skip per suppression directives."""
+    suppressed = set()
+    in_region = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        directives = _DIRECTIVE_RE.findall(line)
+        # Apply enable/disable region toggles first (line-order within the line).
+        for d in directives:
+            if d == "enable":
+                in_region = False
+            elif d == "disable":
+                in_region = True
+        if in_region:
+            suppressed.add(lineno)
+        if "disable-line" in directives:
+            suppressed.add(lineno)
+        if "disable-next-line" in directives:
+            suppressed.add(lineno + 1)
+    return suppressed
 
 
 class Block:
@@ -63,6 +91,7 @@ class Block:
 def extract_blocks(markdown_text):
     """Split Markdown into prose Blocks, each tagged with its source line."""
     body, frontmatter_lines = _strip_frontmatter(markdown_text)
+    skip = suppressed_lines(markdown_text)
     blocks = []
     for token in _MD.parse(body):
         if token.type != "inline":
@@ -74,14 +103,14 @@ def extract_blocks(markdown_text):
         for child in token.children or []:
             kind = child.type
             if kind == "text":
-                parts.append(child.content)
-                children.append((child.content, line))
+                if line not in skip:
+                    parts.append(child.content)
+                    children.append((child.content, line))
             elif kind in ("softbreak", "hardbreak"):
                 parts.append("\n")
                 line += 1
             elif kind == "code_inline":
-                parts.append(" ")  # word separation without checking the code
-            # link/em/strong markers, link URLs, images, html: contribute nothing
+                parts.append(" ")
         text = "".join(parts)
         if text.strip():
             blocks.append(Block(text, base_line, children))
@@ -127,6 +156,14 @@ def line_for_offset(spans, offset):
 # --------------------------------------------------------------------------
 _EM_DASH_RE = re.compile("—")
 _DOUBLE_SPACE_RE = re.compile(r"(?<=[.!?]) {2,}")
+
+# i18n placeholder masking: {name}, {{name}}, %s, %d, %(name)s (plus flanking whitespace)
+# -> a single space, so masking never manufactures a double space after a period.
+_PLACEHOLDER_RE = re.compile(r"\s*(?:\{\{[^}]*\}\}|\{[^}]*\}|%\([^)]*\)[sd]|%[sd])\s*")
+
+
+def _mask_placeholders(value):
+    return _PLACEHOLDER_RE.sub(" ", value)
 
 
 def _local_match(rule_id, offset, length, message, replacements):
@@ -213,17 +250,20 @@ def _read_wordlist(path):
     return words
 
 
-def load_bundle(config_dir, lang):
-    """Load the severity.toml bundle for a language plus its merged allowlist."""
+def load_bundle(config_dir, bundle_name):
+    """Load the severity.toml bundle for a bundle directory plus its merged allowlist."""
     config_dir = Path(config_dir)
-    with open(config_dir / lang / "severity.toml", "rb") as handle:
+    with open(config_dir / bundle_name / "severity.toml", "rb") as handle:
         bundle = tomllib.load(handle)
-    bundle.setdefault("language", lang)
+    if "language" not in bundle:
+        raise KeyError(
+            f"severity.toml for bundle '{bundle_name}' must set a 'language' key"
+        )
     bundle.setdefault("level", "picky")
     for key in ("enabled_rules", "disabled_rules", "disabled_categories", "blocking"):
         bundle.setdefault(key, [])
     bundle["allowlist"] = _read_wordlist(config_dir / "dictionary.txt") | _read_wordlist(
-        config_dir / lang / "dictionary.txt"
+        config_dir / bundle_name / "dictionary.txt"
     )
     return bundle
 
@@ -277,9 +317,15 @@ def _post_check(server, text, bundle):
         raise ServerUnreachable(str(exc)) from exc
 
 
-def check_markdown(markdown_text, server, bundle):
-    """Return findings for one document: match dicts each with a `line` set."""
-    blocks = extract_blocks(markdown_text)
+def select_extractor(path, fmt):
+    """Choose the extractor: explicit --format wins, else by file extension."""
+    if fmt:
+        return fmt
+    return "i18n" if str(path).endswith(".json") else "markdown"
+
+
+def check_blocks(blocks, server, bundle):
+    """Run the shared pipeline over already-extracted blocks; return findings."""
     combined, spans = combine_blocks(blocks)
     findings = []
     if combined.strip():
@@ -290,7 +336,8 @@ def check_markdown(markdown_text, server, bundle):
             enriched["line"] = line_for_offset(spans, match.get("offset", 0))
             findings.append(enriched)
     # Local rules scan the RAW text children (genuine source whitespace), not
-    # the reconstructed block, so inline-code removal cannot fabricate findings.
+    # the reconstructed combined text, so inline-code removal cannot fabricate
+    # findings (e.g. a spurious double space after a period).
     for block in blocks:
         for content, line in block.children:
             for match in local_matches_text(content):
@@ -299,6 +346,55 @@ def check_markdown(markdown_text, server, bundle):
                 findings.append(enriched)
     findings.sort(key=lambda f: (f["line"] or 0, f.get("offset", 0)))
     return findings
+
+
+def check_markdown(markdown_text, server, bundle):
+    """Back-compat wrapper: extract Markdown blocks then run the shared pipeline."""
+    return check_blocks(extract_blocks(markdown_text), server, bundle)
+
+
+def _value_line(json_text, key):
+    """1-indexed line where a flat JSON key's pair appears."""
+    idx = json_text.find('"' + key + '"')
+    if idx < 0:
+        return 1
+    return json_text.count("\n", 0, idx) + 1
+
+
+def extract_i18n(json_text, ignore=None):
+    """Extract checkable string values from a flat i18n locale JSON as Blocks."""
+    ignore = ignore or (lambda key: False)
+    data = json.loads(json_text)
+    blocks = []
+    for key, value in data.items():
+        if not isinstance(value, str) or ignore(key):
+            continue
+        text = _mask_placeholders(value)
+        if not text.strip():
+            continue
+        line = _value_line(json_text, key)
+        blocks.append(Block(text, line, [(text, line)]))
+    return blocks
+
+
+def key_ignorer(patterns):
+    """Return a predicate: key matches any glob pattern or exact listed key."""
+    patterns = list(patterns or [])
+
+    def ignore(key):
+        return any(fnmatch.fnmatchcase(key, p) for p in patterns)
+
+    return ignore
+
+
+def load_i18n_ignore(path):
+    """Read [i18n] ignore_keys from a repo-local .prose-lint.toml (or [])."""
+    path = Path(path)
+    if not path.exists():
+        return []
+    with open(path, "rb") as handle:
+        data = tomllib.load(handle)
+    return data.get("i18n", {}).get("ignore_keys", [])
 
 
 def _format_finding(path, finding, severity):
@@ -323,10 +419,15 @@ def main(argv=None):
         action="store_true",
         help="do not try to start the LanguageTool container if it is down",
     )
+    parser.add_argument("--format", choices=["markdown", "i18n"], default=None)
+    parser.add_argument("--profile", choices=["docs", "microcopy"], default=None)
+    parser.add_argument(
+        "--i18n-ignore",
+        default=None,
+        help="path to a .prose-lint.toml with [i18n] ignore_keys",
+    )
     args = parser.parse_args(argv)
 
-    bundle = load_bundle(args.config_dir, args.lang)
-    blocking_ids = set(bundle["blocking"])
     had_blocking = False
 
     if not args.no_autostart and args.files and not ensure_server(args.server):
@@ -338,15 +439,37 @@ def main(argv=None):
         print("Start it manually with: bin/prose-lint-server.sh start", file=sys.stderr)
         return 2
 
+    profile = args.profile
+    ignore_patterns = load_i18n_ignore(args.i18n_ignore) if args.i18n_ignore else []
+    ignore = key_ignorer(ignore_patterns)
+
     for path in args.files:
+        fmt = select_extractor(path, args.format)
+        bundle_name = args.lang
+        if profile == "microcopy" or (profile is None and fmt == "i18n"):
+            bundle_name = f"{args.lang}-microcopy"
+        bundle = load_bundle(args.config_dir, bundle_name)
+        blocking_ids = set(bundle["blocking"])
         try:
-            markdown_text = Path(path).read_text(encoding="utf-8")
+            source = Path(path).read_text(encoding="utf-8")
         except OSError as exc:
             print(f"prose-check: cannot read {path}: {exc}", file=sys.stderr)
             had_blocking = True
             continue
         try:
-            findings = check_markdown(markdown_text, args.server, bundle)
+            if fmt == "i18n":
+                blocks = extract_i18n(source, ignore)
+                if not blocks and source.strip():
+                    print(
+                        f"prose-check: {path}: no flat string values found "
+                        "(nested locale JSON is not supported yet)",
+                        file=sys.stderr,
+                    )
+                    had_blocking = True
+                    continue
+            else:
+                blocks = extract_blocks(source)
+            findings = check_blocks(blocks, args.server, bundle)
         except ServerUnreachable as exc:
             print(
                 f"prose-check: LanguageTool server unreachable at {args.server}: {exc}",
