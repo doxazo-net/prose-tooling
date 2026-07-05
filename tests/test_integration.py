@@ -31,9 +31,10 @@ def test_blocking_file_exits_1_with_errors(capsys):
     code = prose_check.main([str(FIXTURES / "blocking.md")])
     out = capsys.readouterr().out
     assert code == 1
-    assert "[ERROR] MORFOLOGIK_RULE_EN_US" in out
+    # Grammar rules block; spelling is advisory (typos owns blocking spelling).
     assert "[ERROR] LOCAL_EM_DASH" in out
     assert "[ERROR] SERIAL_COMMA_ON" in out
+    assert "[warn] MORFOLOGIK_RULE_EN_US" in out
 
 
 def test_advisory_only_file_exits_0(capsys):
