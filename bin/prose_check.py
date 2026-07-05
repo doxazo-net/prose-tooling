@@ -10,6 +10,7 @@ offset maps back to a source line via the block it falls in.
 """
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -368,6 +369,26 @@ def extract_i18n(json_text, ignore=None):
         line = _value_line(json_text, key)
         blocks.append(Block(text, line, [(text, line)]))
     return blocks
+
+
+def key_ignorer(patterns):
+    """Return a predicate: key matches any glob pattern or exact listed key."""
+    patterns = list(patterns or [])
+
+    def ignore(key):
+        return any(fnmatch.fnmatchcase(key, p) for p in patterns)
+
+    return ignore
+
+
+def load_i18n_ignore(path):
+    """Read [i18n] ignore_keys from a repo-local .prose-lint.toml (or [])."""
+    path = Path(path)
+    if not path.exists():
+        return []
+    with open(path, "rb") as handle:
+        data = tomllib.load(handle)
+    return data.get("i18n", {}).get("ignore_keys", [])
 
 
 def _format_finding(path, finding, severity):

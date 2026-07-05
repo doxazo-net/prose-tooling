@@ -1,4 +1,4 @@
-from prose_check import extract_i18n
+from prose_check import extract_i18n, key_ignorer
 
 
 def test_values_extracted_keys_skipped():
@@ -40,3 +40,17 @@ def test_masking_does_not_manufacture_double_space():
     text = extract_i18n(js)[0].text
     assert "  " not in text  # no double space
     assert not any(m["rule"]["id"] == "LOCAL_DOUBLE_SPACE" for m in local_matches_text(text))
+
+
+def test_glob_and_exact_key_ignored():
+    js = (
+        '{\n'
+        '  "help.tooltip": "This teh tooltip is skipped.",\n'
+        '  "audit.log_line": "Skipped teh log copy.",\n'
+        '  "col.mbid": "MusicBrainz ID",\n'
+        '  "body.text": "This regular copy is checked."\n'
+        '}\n'
+    )
+    ignore = key_ignorer(["*.tooltip", "*.log_*", "col.mbid"])
+    texts = [b.text for b in extract_i18n(js, ignore)]
+    assert texts == ["This regular copy is checked."]
