@@ -305,9 +305,15 @@ def _post_check(server, text, bundle):
         raise ServerUnreachable(str(exc)) from exc
 
 
-def check_markdown(markdown_text, server, bundle):
-    """Return findings for one document: match dicts each with a `line` set."""
-    blocks = extract_blocks(markdown_text)
+def select_extractor(path, fmt):
+    """Choose the extractor: explicit --format wins, else by file extension."""
+    if fmt:
+        return fmt
+    return "i18n" if str(path).endswith(".json") else "markdown"
+
+
+def check_blocks(blocks, server, bundle):
+    """Run the shared pipeline over already-extracted blocks; return findings."""
     combined, spans = combine_blocks(blocks)
     findings = []
     if combined.strip():
@@ -317,8 +323,6 @@ def check_markdown(markdown_text, server, bundle):
             enriched = dict(match)
             enriched["line"] = line_for_offset(spans, match.get("offset", 0))
             findings.append(enriched)
-    # Local rules scan the RAW text children (genuine source whitespace), not
-    # the reconstructed block, so inline-code removal cannot fabricate findings.
     for block in blocks:
         for content, line in block.children:
             for match in local_matches_text(content):
@@ -327,6 +331,11 @@ def check_markdown(markdown_text, server, bundle):
                 findings.append(enriched)
     findings.sort(key=lambda f: (f["line"] or 0, f.get("offset", 0)))
     return findings
+
+
+def check_markdown(markdown_text, server, bundle):
+    """Back-compat wrapper: extract Markdown blocks then run the shared pipeline."""
+    return check_blocks(extract_blocks(markdown_text), server, bundle)
 
 
 def _format_finding(path, finding, severity):
