@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# pre-commit hook: mirrors the CI lint job so issues are caught before push.
+#
+# Checks (in order, fast-fail):
+#   1. ruff        -- lint bin/ and tests/ (F,E741)
+#   2. shellcheck  -- staged bin/*.sh
+#   3. pytest      -- unit tests (live integration auto-skips without a server)
+#   4. prose-lint  -- dogfood prose_check.py on staged markdown (opt-in; needs
+#                     the .venv and a LanguageTool server, which it auto-starts)
+#
+# Install with: make hooks   (sets core.hooksPath = .githooks)
+# Skip with:    git commit --no-verify   (use sparingly)
+
+set -euo pipefail
+
+if [ -t 1 ]; then
+	RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[0;33m' BOLD='\033[1m' RESET='\033[0m'
+else
+	RED='' GREEN='' YELLOW='' BOLD='' RESET=''
+fi
+fail() {
+	echo -e "${RED}${BOLD}FAIL${RESET} $1" >&2
+	exit 1
+}
+pass() { echo -e "${GREEN}PASS${RESET} $1"; }
+warn() { echo -e "${YELLOW}SKIP${RESET} $1"; }
+
+ROOT="$(git rev-parse --show-toplevel)"
+PY="$ROOT/.venv/bin/python"
+
+# 1. ruff
+if [ -x "$PY" ] && "$PY" -c 'import ruff' >/dev/null 2>&1 || command -v ruff >/dev/null 2>&1; then
+	RUFF=(ruff)
+	[ -x "$PY" ] && "$PY" -m ruff --version >/dev/null 2>&1 && RUFF=("$PY" -m ruff)
+	if OUT=$("${RUFF[@]}" check bin/ tests/ 2>&1); then pass "ruff"; else
+		echo "$OUT"
+		fail "ruff"
+	fi
+else
+	warn "ruff (not installed, skipping)"
+fi
+
+# 2. shellcheck -- staged bin/*.sh only
+STAGED_SH=$(git diff --cached --name-only --diff-filter=ACM -- 'bin/*.sh' || true)
+if [ -n "$STAGED_SH" ]; then
+	if command -v shellcheck >/dev/null 2>&1; then
+		if OUT=$(echo "$STAGED_SH" | tr '\n' '\0' | xargs -0 shellcheck 2>&1); then pass "shellcheck"; else
+			echo "$OUT"
+			fail "shellcheck"
+		fi
+	else
+		warn "shellcheck (not installed, skipping)"
+	fi
+else
+	warn "shellcheck (no staged bin/*.sh)"
+fi
+
+# 3. pytest (unit; integration auto-skips without a server)
+if [ -x "$PY" ]; then
+	if OUT=$("$PY" -m pytest -q 2>&1); then pass "pytest"; else
+		echo "$OUT"
+		fail "pytest"
+	fi
+else
+	warn "pytest (.venv missing, skipping)"
+fi
+
+# 4. prose-lint -- dogfood on staged markdown/text
+STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' '*.txt' || true)
+if [ -n "$STAGED_MD" ]; then
+	if [ -x "$PY" ] && [ -f "$ROOT/bin/prose_check.py" ]; then
+		if OUT=$(echo "$STAGED_MD" | tr '\n' '\0' | xargs -0 "$PY" "$ROOT/bin/prose_check.py" --lang en-US -- 2>&1); then
+			[ -n "$OUT" ] && echo "$OUT"
+			pass "prose-lint"
+		else
+			echo "$OUT"
+			fail "prose-lint"
+		fi
+	else
+		warn "prose-lint (.venv/client missing, skipping)"
+	fi
+else
+	warn "prose-lint (no staged .md/.txt)"
+fi
