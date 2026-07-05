@@ -251,6 +251,36 @@ class ServerUnreachable(RuntimeError):
     pass
 
 
+_SERVER_SCRIPT = Path(__file__).resolve().parent / "prose-lint-server.sh"
+
+
+def server_is_up(server):
+    """True if the LanguageTool server answers /v2/languages."""
+    try:
+        with urllib.request.urlopen(server.rstrip("/") + "/v2/languages", timeout=3):
+            return True
+    except (urllib.error.URLError, OSError):
+        return False
+
+
+def _start_server():
+    """Start the container via the server script (blocks until ready)."""
+    import subprocess
+
+    subprocess.run([str(_SERVER_SCRIPT), "start"], check=False)
+
+
+def ensure_server(server, start_fn=_start_server, is_up=server_is_up):
+    """Ensure the server is reachable, starting it once if it is not.
+
+    Returns True if the server is up (already, or after a start attempt).
+    """
+    if is_up(server):
+        return True
+    start_fn()
+    return is_up(server)
+
+
 def _post_check(server, payload, bundle):
     fields = {
         "data": json.dumps(payload),
@@ -307,11 +337,27 @@ def main(argv=None):
     parser.add_argument("--lang", default="en-US")
     parser.add_argument("--server", default=DEFAULT_SERVER)
     parser.add_argument("--config-dir", default=str(_DEFAULT_CONFIG_DIR))
+    parser.add_argument(
+        "--no-autostart",
+        action="store_true",
+        help="do not try to start the LanguageTool container if it is down",
+    )
     args = parser.parse_args(argv)
 
     bundle = load_bundle(args.config_dir, args.lang)
     blocking_ids = set(bundle["blocking"])
     had_blocking = False
+
+    # Start the container on demand (unless opted out) so a stopped server does
+    # not fail the commit. ensure_server blocks until the container is ready.
+    if not args.no_autostart and args.files and not ensure_server(args.server):
+        print(
+            f"prose-check: LanguageTool server unreachable at {args.server} "
+            "and could not be started.",
+            file=sys.stderr,
+        )
+        print("Start it manually with: bin/prose-lint-server.sh start", file=sys.stderr)
+        return 2
 
     for path in args.files:
         try:

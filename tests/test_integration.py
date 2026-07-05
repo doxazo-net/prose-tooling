@@ -53,7 +53,9 @@ def test_code_fence_prose_is_not_flagged(capsys):
 
 
 def test_server_down_fails_loud(capsys):
-    code = prose_check.main(["--server", "http://localhost:9", str(FIXTURES / "advisory.md")])
+    code = prose_check.main(
+        ["--no-autostart", "--server", "http://localhost:9", str(FIXTURES / "advisory.md")]
+    )
     err = capsys.readouterr().err
     assert code == 2
     assert "unreachable" in err

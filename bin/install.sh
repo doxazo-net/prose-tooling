@@ -26,7 +26,9 @@ else
 fi
 echo "${MECH}"
 echo
-echo "1) Ensure the LanguageTool server is running:"
+echo "1) The client auto-starts the container on demand if it is stopped."
+echo "   (First commit after a stop pays a one-time ~15s container start.)"
+echo "   To pre-start or manage it manually:"
 echo "   ${TOOLING_DIR}/bin/prose-lint-server.sh start"
 echo
 echo "2a) For a .githooks/pre-commit (bash) repo, add this section:"
