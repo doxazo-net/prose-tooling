@@ -39,11 +39,12 @@ content is never sent to the public API.
 ### House rules (en-US)
 
 Blocking: em-dash (`LOCAL_EM_DASH`), one space after sentence punctuation
-(`LOCAL_DOUBLE_SPACE`), Oxford/serial comma (`SERIAL_COMMA_ON`), spelling
-(`MORFOLOGIK_RULE_EN_US`). Advisory: passive voice, readability, and wordiness
-(the last is partly premium-gated on the free server). Em-dash and double-space
-are deterministic client-side rules because the free server has no rule for
-them.
+(`LOCAL_DOUBLE_SPACE`), Oxford/serial comma (`SERIAL_COMMA_ON`). Advisory:
+spelling (`typos` already blocks spelling in the hooks; LT flags bare code
+identifiers), passive voice, readability, and wordiness (the last is partly
+premium-gated on the free server). Em-dash and double-space are deterministic
+client-side rules because the free server has no rule for them. See the design
+spec's "Calibration outcomes" for the disabled-rule list and rationale.
 
 ## Tests
 

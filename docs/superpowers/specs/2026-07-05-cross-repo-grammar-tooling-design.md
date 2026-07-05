@@ -130,7 +130,7 @@ From the maintainer's answers. `level=picky` unlocks the pedantic rules;
 | Serial (Oxford) comma | require | blocking |
 | One space after sentence punctuation | enforce | blocking |
 | Em-dash usage | flag (client-side local rule) | blocking |
-| Spelling | en-US dict + shared allowlist | blocking |
+| Spelling | en-US dict + shared allowlist | advisory (see notes) |
 | Passive voice | flag | advisory |
 | Contractions | allow | off |
 | Long / complex sentences | aggressive threshold | advisory |
@@ -217,3 +217,25 @@ Deviations from the design above, discovered while building against a live
   free server, so advisory wordiness coverage is partial (documented limit).
 - **Findings print as `path:line`** (line-level). markdown-it does not expose
   reliable source columns for inline content, so precise columns are deferred.
+
+### Calibration outcomes (stillwater, 98 docs, 2026-07-05)
+
+- **The one-request data-annotation engine was replaced by a per-block engine.**
+  LanguageTool's `data`-API offsets index the reconstructed original (markup
+  length included), which mislocated findings on any doc with inline markup
+  (verified 12/12 wrong on a real doc). The per-block engine extracts prose
+  blocks tagged with their source line, joins them into ONE pure-prose string
+  (no markup, so offsets cannot drift), checks once, and maps offsets back per
+  block. Line accuracy went 66% -> 97%. Local rules scan the raw text children
+  (not the reconstruction) so inline-code removal cannot fabricate findings.
+- **GFM table rule enabled** (`commonmark` + `table`) so table syntax is
+  excluded rather than spell-checked as prose.
+- **Disabled rules** (wrong for technical Markdown): `EN_QUOTES`, `TWO_HYPHENS`,
+  `DASH_RULE`, `ARROWS`, `MULTIPLICATION_SIGN`, `ID_CASING`,
+  `UPPERCASE_SENTENCE_START`, `DOUBLE_PUNCTUATION`, and the whitespace-layout
+  rules `WHITESPACE_RULE`, `CONSECUTIVE_SPACES`, `COMMA_PARENTHESIS_WHITESPACE`,
+  `SENTENCE_WHITESPACE`.
+- **Blocking set is now three rules** (em-dash, one-space, serial comma).
+  Spelling was demoted to advisory: `typos` already blocks spelling in the
+  hooks, and LanguageTool flags bare code identifiers. Only 4/98 docs carry a
+  blocking finding, so per-commit friction on changed files is low.
