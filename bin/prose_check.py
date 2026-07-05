@@ -156,6 +156,13 @@ def line_for_offset(spans, offset):
 _EM_DASH_RE = re.compile("—")
 _DOUBLE_SPACE_RE = re.compile(r"(?<=[.!?]) {2,}")
 
+# i18n placeholder masking: {name}, {{name}}, %s, %d, %(name)s -> a single space.
+_PLACEHOLDER_RE = re.compile(r"\{\{[^}]*\}\}|\{[^}]*\}|%\([^)]*\)[sd]|%[sd]")
+
+
+def _mask_placeholders(value):
+    return _PLACEHOLDER_RE.sub(" ", value)
+
 
 def _local_match(rule_id, offset, length, message, replacements):
     return {
@@ -354,7 +361,7 @@ def extract_i18n(json_text, ignore=None):
     for key, value in data.items():
         if not isinstance(value, str) or ignore(key):
             continue
-        text = value  # placeholder masking added in Task 4
+        text = _mask_placeholders(value)
         if not text.strip():
             continue
         line = _value_line(json_text, key)
