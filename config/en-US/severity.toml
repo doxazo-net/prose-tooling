@@ -10,8 +10,26 @@ level = "picky"
 # at picky, but pinning it keeps the require-Oxford-comma behavior explicit).
 enabled_rules = ["SERIAL_COMMA_ON"]
 
-# Rules / categories never surfaced.
-disabled_rules = []
+# Rules / categories never surfaced. Disabled from the stillwater calibration
+# run: these fire constantly and wrongly on technical Markdown (CLI flags,
+# straight quotes, code identifiers, arrows/math in docs).
+disabled_rules = [
+    "EN_QUOTES",              # wants curly quotes; wrong for docs with code/paths
+    "TWO_HYPHENS",            # flags `--cli-flags` as an en-dash
+    "DASH_RULE",              # dash spacing; noisy around code/ranges
+    "ARROWS",                 # rewrites -> etc. in technical prose
+    "MULTIPLICATION_SIGN",    # rewrites x/* in dimensions and code
+    "ID_CASING",              # flags CamelCase identifiers
+    "UPPERCASE_SENTENCE_START",  # fires on list/heading fragments
+    "DOUBLE_PUNCTUATION",     # fires on ellipses/paths in docs
+    # Whitespace-LAYOUT rules: meaningless on reconstructed prose, where inline
+    # code removal legitimately leaves collapsed/adjacent spaces. Layout is the
+    # markdownlint/gofmt layer's job, not the grammar layer's.
+    "WHITESPACE_RULE",
+    "CONSECUTIVE_SPACES",
+    "COMMA_PARENTHESIS_WHITESPACE",
+    "SENTENCE_WHITESPACE",
+]
 disabled_categories = []
 
 # Rule IDs / category IDs that FAIL a commit. Everything else is advisory
