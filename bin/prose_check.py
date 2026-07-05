@@ -250,17 +250,16 @@ def _read_wordlist(path):
     return words
 
 
-def load_bundle(config_dir, lang):
-    """Load the severity.toml bundle for a language plus its merged allowlist."""
+def load_bundle(config_dir, bundle_name):
+    """Load the severity.toml bundle for a bundle directory plus its merged allowlist."""
     config_dir = Path(config_dir)
-    with open(config_dir / lang / "severity.toml", "rb") as handle:
+    with open(config_dir / bundle_name / "severity.toml", "rb") as handle:
         bundle = tomllib.load(handle)
-    bundle.setdefault("language", lang)
     bundle.setdefault("level", "picky")
     for key in ("enabled_rules", "disabled_rules", "disabled_categories", "blocking"):
         bundle.setdefault(key, [])
     bundle["allowlist"] = _read_wordlist(config_dir / "dictionary.txt") | _read_wordlist(
-        config_dir / lang / "dictionary.txt"
+        config_dir / bundle_name / "dictionary.txt"
     )
     return bundle
 

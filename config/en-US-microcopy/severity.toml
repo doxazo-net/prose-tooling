@@ -1,0 +1,16 @@
+# Microcopy profile for UI strings (labels, headers, short imperatives).
+# Extends the docs en-US disables with rules that misfire on fragments.
+language = "en-US"
+level = "picky"
+enabled_rules = ["SERIAL_COMMA_ON"]
+disabled_rules = [
+    "EN_QUOTES", "TWO_HYPHENS", "DASH_RULE", "ARROWS", "MULTIPLICATION_SIGN",
+    "ID_CASING", "DOUBLE_PUNCTUATION", "WHITESPACE_RULE", "CONSECUTIVE_SPACES",
+    "COMMA_PARENTHESIS_WHITESPACE", "SENTENCE_WHITESPACE",
+    # Microcopy-specific: labels/headers are fragments, not sentences.
+    "UPPERCASE_SENTENCE_START", "PUNCTUATION_PARAGRAPH_END",
+    "MISSING_PERIOD_AFTER_ABBREVIATION",
+]
+disabled_categories = []
+# Blocking stays minimal for microcopy; tuned in the calibration task.
+blocking = ["LOCAL_EM_DASH", "SERIAL_COMMA_ON"]

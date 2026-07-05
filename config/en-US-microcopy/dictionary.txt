@@ -1,0 +1,2 @@
+# Microcopy allowlist (merged with global config/dictionary.txt).
+# Seeded during calibration on en.json.
