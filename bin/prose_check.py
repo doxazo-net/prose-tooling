@@ -30,6 +30,12 @@ _MD = MarkdownIt("commonmark").enable("table")
 # A leading YAML frontmatter block: `---` on line 1, prose lines, closing `---`.
 _FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---[ \t]*(?:\n|\Z)", re.DOTALL)
 
+# Suppression directives (HTML comments; never rendered). Matched exactly so
+# `disable` does not also match `disable-line`.
+_DIRECTIVE_RE = re.compile(
+    r"<!--\s*prose-lint-(disable-next-line|disable-line|disable|enable)\s*-->"
+)
+
 
 def _strip_frontmatter(markdown_text):
     """Return (body, leading_line_count) with any YAML frontmatter removed."""
@@ -37,6 +43,27 @@ def _strip_frontmatter(markdown_text):
     if not match:
         return markdown_text, 0
     return markdown_text[match.end():], match.group(0).count("\n")
+
+
+def suppressed_lines(text):
+    """Return the set of 1-indexed source lines to skip per suppression directives."""
+    suppressed = set()
+    in_region = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        directives = _DIRECTIVE_RE.findall(line)
+        # Apply enable/disable region toggles first (line-order within the line).
+        for d in directives:
+            if d == "enable":
+                in_region = False
+            elif d == "disable":
+                in_region = True
+        if in_region:
+            suppressed.add(lineno)
+        if "disable-line" in directives:
+            suppressed.add(lineno)
+        if "disable-next-line" in directives:
+            suppressed.add(lineno + 1)
+    return suppressed
 
 
 class Block:
@@ -63,6 +90,7 @@ class Block:
 def extract_blocks(markdown_text):
     """Split Markdown into prose Blocks, each tagged with its source line."""
     body, frontmatter_lines = _strip_frontmatter(markdown_text)
+    skip = suppressed_lines(markdown_text)
     blocks = []
     for token in _MD.parse(body):
         if token.type != "inline":
@@ -74,14 +102,14 @@ def extract_blocks(markdown_text):
         for child in token.children or []:
             kind = child.type
             if kind == "text":
-                parts.append(child.content)
-                children.append((child.content, line))
+                if line not in skip:
+                    parts.append(child.content)
+                    children.append((child.content, line))
             elif kind in ("softbreak", "hardbreak"):
                 parts.append("\n")
                 line += 1
             elif kind == "code_inline":
-                parts.append(" ")  # word separation without checking the code
-            # link/em/strong markers, link URLs, images, html: contribute nothing
+                parts.append(" ")
         text = "".join(parts)
         if text.strip():
             blocks.append(Block(text, base_line, children))
