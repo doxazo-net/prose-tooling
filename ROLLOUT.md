@@ -10,8 +10,7 @@ stillwater.
 - [x] Tooling built and tested (client, server, en-US config) -- 25 tests green.
 - [x] cc-orchestrator #219 -- lint issue/PR/comment bodies with the same config.
 - [ ] stillwater -- adopt into `.githooks/pre-commit` + `docs.yml` CI (calibration target).
-      Issue body ready; filing blocked by a local PreToolUse hook on
-      `gh issue create` against sydlexius/stillwater (maintainer to file).
+      Tracked in sydlexius/stillwater #2239.
 - [ ] Calibrate `config/en-US/severity.toml` + dictionary against stillwater docs.
 - [ ] Roll out to remaining repos after calibration, each via its own issue:
   - [ ] canticle (pre-commit framework)
