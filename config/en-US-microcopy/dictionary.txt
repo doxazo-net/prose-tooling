@@ -1,2 +1,35 @@
-# Microcopy allowlist (merged with global config/dictionary.txt).
-# Seeded during calibration on en.json.
+# Microcopy allowlist (merged with the global config/dictionary.txt).
+# Seeded from the stillwater en.json calibration (2026-07-05). Spelling is
+# advisory in this profile, so these just reduce advisory noise on legit
+# product/domain terms in UI copy. Case-insensitive.
+
+# Media / metadata domain
+NFO
+NFOs
+fanart
+Lidarr
+Kodi
+Emby
+Jellyfin
+Discogs
+AudioDB
+TheAudioDB
+MusicBrainz
+MBID
+lockdata
+PremiereDate
+EndDate
+
+# Dev / infra jargon
+filesystem
+allowlisting
+QUIC
+BlurHash
+PRAGMA
+Hyperlegible
+
+# Auth / services
+Authentik
+Authelia
+Keycloak
+Gotify
