@@ -1,0 +1,2 @@
+# en-US-specific allowlist (merged with the global config/dictionary.txt).
+# Add American-English project terms LanguageTool flags as misspellings here.
