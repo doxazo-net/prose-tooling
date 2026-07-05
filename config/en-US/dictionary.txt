@@ -1,2 +1,36 @@
 # en-US-specific allowlist (merged with the global config/dictionary.txt).
-# Add American-English project terms LanguageTool flags as misspellings here.
+# Seeded from the stillwater calibration run. Comparison is case-insensitive,
+# so one entry covers all casings. Domain/media terms and dev jargon that
+# LanguageTool's dictionary does not know.
+
+# Media / metadata domain
+NFO
+NFOs
+Kodi
+Emby
+Jellyfin
+Lidarr
+fanart
+Discogs
+AudioDB
+TheAudioDB
+MusicBrainz
+MBID
+SortName
+MusicArtist
+ProviderIds
+ReplaceAllImages
+lockdata
+writeback
+
+# Dev / infra jargon
+filesystem
+worktree
+worktrees
+goroutine
+goroutines
+templ
+OpenAPI
+Traefik
+ZeroSSL
+EAB
