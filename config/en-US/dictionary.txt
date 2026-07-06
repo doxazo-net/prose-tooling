@@ -34,3 +34,13 @@ OpenAPI
 Traefik
 ZeroSSL
 EAB
+toolchain
+prereqs
+
+# Browser engines (proper nouns; case-insensitive match also covers the
+# lowercase Playwright CLI identifiers firefox/webkit)
+Firefox
+WebKit
+
+# Brand / design
+wordmark
