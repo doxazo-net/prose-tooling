@@ -1,0 +1,7 @@
+# Gate definition read by the cc-orchestrator gate-runner (prep-pr / handle-review /
+# review-stack). Delegates to the repo's own umbrella target so there is one source of
+# truth for "what the gates are". Prereq: the project .venv (see CLAUDE.md). `make check`
+# runs lint (ruff check bin/ tests/ + shellcheck bin/*.sh) then test (pytest -q; the live
+# LanguageTool integration tests self-skip when no server is running).
+[prep_pr]
+gate = "make check"

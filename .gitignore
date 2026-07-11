@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 .superpowers/
+
+# Orchestrate session checkpoint (machine-local, transient; never committed)
+/SESSION-STATE.md
