@@ -39,12 +39,21 @@ content is never sent to the public API.
 ### House rules (en-US)
 
 Blocking: em-dash (`LOCAL_EM_DASH`), one space after sentence punctuation
-(`LOCAL_DOUBLE_SPACE`), Oxford/serial comma (`SERIAL_COMMA_ON`). Advisory:
-spelling (`typos` already blocks spelling in the hooks; LT flags bare code
+(`LOCAL_DOUBLE_SPACE`), British spellings (`LOCAL_BRITISH_SPELLING`), Oxford/serial
+comma (`SERIAL_COMMA_ON`). Advisory: general spelling (`MORFOLOGIK_RULE_EN_US`;
+`typos` already blocks spelling in the hooks, and LT flags bare code
 identifiers), passive voice, readability, and wordiness (the last is partly
-premium-gated on the free server). Em-dash and double-space are deterministic
-client-side rules because the free server has no rule for them. See the design
-spec's "Calibration outcomes" for the disabled-rule list and rationale.
+premium-gated on the free server). Em-dash, double-space, and British-spelling
+are deterministic client-side rules because the free server has no usable rule
+for them - MORFOLOGIK reports British spellings only advisory-side and its en-US
+dictionary accepts some (`catalogue`) outright, so a curated whole-word
+British->American map does the enforcing. See the design spec's "Calibration
+outcomes" for the disabled-rule list and rationale.
+
+The British-spelling list is a corpus generated from VarCon (SCOWL, public
+domain) by `bin/gen_british_spellings.py` into `config/en-US/british-american.txt`,
+with house-style adds/exclusions in `config/en-US/british-american.overrides.txt`.
+Regenerate after editing overrides or refreshing the vendored `config/en-US/varcon.txt`.
 
 ## Tests
 

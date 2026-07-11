@@ -1,0 +1,21 @@
+# config/en-US/british-american.overrides.txt
+# House-style adds and false-positive exclusions layered onto the VarCon corpus.
+# '+ british american' force-adds a pair VarCon marks American-acceptable but the
+#   house style dispreferred. '- british' drops a British-only VarCon pair that is
+#   in fact standard American (a false positive). Grow the '-' set from the repo sweep.
+
+# House-style adds: VarCon tags these as an American variant, so the auto filter
+# drops them, but house style wants the American form.
++ grey gray
++ catalogue catalog
++ catalogues catalogs
++ catalogued cataloged
++ cancelled canceled
++ cancelling canceling
++ practise practice
++ aluminium aluminum
++ programme program
++ programmes programs
+
+# Exclusions: standard American spellings VarCon may pair as British. Never block.
+- dialogue

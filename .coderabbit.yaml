@@ -7,3 +7,8 @@ language: en-US
 reviews:
   auto_review:
     enabled: false
+  # Skip vendored VarCon and the generated British-spelling corpus: they are
+  # data, not hand-written code. Review the generator + overrides file instead.
+  path_filters:
+    - "!config/en-US/varcon.txt"
+    - "!config/en-US/british-american.txt"

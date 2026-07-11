@@ -1,0 +1,6 @@
+# Vendored third-party data and the generated spelling corpus: collapse in
+# diffs, exclude from language stats, and signal review bots to skip them.
+# varcon.txt is vendored (fetched upstream, not produced here) -> linguist-vendored;
+# british-american.txt is produced by bin/gen_british_spellings.py -> linguist-generated.
+config/en-US/varcon.txt            linguist-vendored=true
+config/en-US/british-american.txt  linguist-generated=true
