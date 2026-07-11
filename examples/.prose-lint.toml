@@ -1,0 +1,10 @@
+# Repo-local prose-lint config. Placed at your repo root, it is auto-loaded
+# by prose_check.py (no flag needed). See docs/CONFIG.md.
+
+[i18n]
+# Keys whose VALUES are skipped (glob via fnmatch, or exact key). Useful for
+# code-ish strings, tooltips, or log lines that are not prose.
+ignore_keys = [
+    "*.tooltip",
+    "*.log_*",
+]

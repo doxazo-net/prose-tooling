@@ -1,0 +1,4 @@
+# Per-language spelling allowlist (case-insensitive, one word per line).
+# Add project nouns / tools LanguageTool does not know. Merged with the
+# global config/dictionary.txt at check time.
+YourProductName

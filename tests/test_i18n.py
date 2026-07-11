@@ -132,3 +132,34 @@ def test_array_index_ignore_glob():
     js = '{\n  "msgs": [ "Keep this one." ]\n}\n'
     ignore = key_ignorer(["msgs.*"])
     assert extract_i18n(js, ignore) == []
+
+
+def test_cwd_prose_lint_toml_auto_loaded(tmp_path, monkeypatch):
+    import prose_check
+    (tmp_path / ".prose-lint.toml").write_text('[i18n]\nignore_keys = ["*.skip"]\n')
+    monkeypatch.chdir(tmp_path)
+    assert prose_check._resolve_i18n_ignore(None) == ["*.skip"]
+
+
+def test_explicit_flag_overrides_cwd(tmp_path, monkeypatch):
+    import prose_check
+    (tmp_path / ".prose-lint.toml").write_text('[i18n]\nignore_keys = ["*.cwd"]\n')
+    other = tmp_path / "other.toml"
+    other.write_text('[i18n]\nignore_keys = ["*.explicit"]\n')
+    monkeypatch.chdir(tmp_path)
+    assert prose_check._resolve_i18n_ignore(str(other)) == ["*.explicit"]
+
+
+def test_no_toml_means_no_ignores(tmp_path, monkeypatch):
+    import prose_check
+    monkeypatch.chdir(tmp_path)
+    assert prose_check._resolve_i18n_ignore(None) == []
+
+
+def test_malformed_cwd_toml_raises(tmp_path, monkeypatch):
+    import prose_check
+    import pytest
+    (tmp_path / ".prose-lint.toml").write_text("this is not = valid = toml\n")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(Exception):
+        prose_check._resolve_i18n_ignore(None)

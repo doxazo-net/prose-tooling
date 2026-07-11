@@ -11,9 +11,11 @@ Design: [`docs/superpowers/specs/2026-07-05-cross-repo-grammar-tooling-design.md
 
 - `bin/prose-lint-server.sh` -- start/stop/status the LanguageTool container (OrbStack).
 - `bin/prose_check.py` -- the Markdown-aware client (deps in `.venv`, so target repos stay dependency-free).
-- `bin/install.sh` -- prints the git-hook wiring to adopt this in a target repo.
+- `bin/install.sh` -- scaffold a starter `.prose-lint.toml` into a target repo and print the git-hook wiring (`--with-config` also copies a starter config dir).
 - `config/<lang>/severity.toml` -- per-language rules + blocking-vs-advisory map.
 - `config/dictionary.txt`, `config/<lang>/dictionary.txt` -- spelling allowlists.
+
+See [docs/CONFIG.md](docs/CONFIG.md) for the full config schema and adoption guide.
 
 ## Use
 

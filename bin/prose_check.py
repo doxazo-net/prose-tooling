@@ -503,6 +503,16 @@ def load_i18n_ignore(path):
     return data.get("i18n", {}).get("ignore_keys", [])
 
 
+def _resolve_i18n_ignore(explicit):
+    """Ignore-key list by precedence: explicit --i18n-ignore path, else an
+    auto-loaded ./.prose-lint.toml in the cwd if present, else none. A malformed
+    file raises (tomllib) rather than silently yielding no ignores."""
+    if explicit:
+        return load_i18n_ignore(explicit)
+    default = Path(".prose-lint.toml")
+    return load_i18n_ignore(default) if default.exists() else []
+
+
 def _format_finding(path, finding, severity):
     rule_id = finding.get("rule", {}).get("id", "?")
     message = finding.get("message", "")
@@ -530,7 +540,8 @@ def main(argv=None):
     parser.add_argument(
         "--i18n-ignore",
         default=None,
-        help="path to a .prose-lint.toml with [i18n] ignore_keys",
+        help="path to a .prose-lint.toml with [i18n] ignore_keys "
+        "(default: ./.prose-lint.toml if present)",
     )
     args = parser.parse_args(argv)
 
@@ -546,7 +557,7 @@ def main(argv=None):
         return 2
 
     profile = args.profile
-    ignore_patterns = load_i18n_ignore(args.i18n_ignore) if args.i18n_ignore else []
+    ignore_patterns = _resolve_i18n_ignore(args.i18n_ignore)
     ignore = key_ignorer(ignore_patterns)
 
     for path in args.files:
