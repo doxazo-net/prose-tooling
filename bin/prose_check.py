@@ -157,6 +157,68 @@ def line_for_offset(spans, offset):
 _EM_DASH_RE = re.compile("—")
 _DOUBLE_SPACE_RE = re.compile(r"(?<=[.!?]) {2,}")
 
+# British -> American spellings, for American-English bundles only. A curated
+# whole-word MAP (not a suffix rule) keeps this deterministic and low false
+# positive, so it is safe to BLOCK on: only listed words fire, so lookalikes
+# that are valid American (advise, surprise, greyhound, cancellation) never do.
+# LanguageTool's MORFOLOGIK spelling rule is advisory here (it also flags code
+# identifiers) and its en-US dictionary accepts some British variants outright
+# (catalogue), so neither severity tuning nor the server can enforce this. Keep
+# every entry unambiguously British; skip contentious cases (theatre, judgement,
+# dialogue, disc) that are also valid American. Comparison is case-insensitive.
+# Whole-word tokens only: the negative lookarounds on \w restore the \b-on-\w
+# boundary the old regex had, so a British fragment inside a snake_case or
+# digit-suffixed identifier in prose (my_colour_var, colour2) is not flagged --
+# critical because LOCAL_BRITISH_SPELLING blocks commits.
+_WORD_RE = re.compile(r"(?<!\w)[A-Za-z]+(?!\w)")
+_BRITISH_MAP_CACHE = None
+
+
+def _load_british_map(path):
+    """Load the British->American corpus. Raises if missing/empty: a blocking
+    rule must never silently degrade to a no-op (no-silent-failure house rule)."""
+    mapping = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        brit, _tab, amer = line.partition("\t")
+        if amer:
+            mapping[brit.strip().lower()] = amer.strip().lower()
+    if not mapping:
+        raise ValueError(f"British-spelling corpus is empty: {path}")
+    return mapping
+
+
+def _british_map():
+    global _BRITISH_MAP_CACHE
+    if _BRITISH_MAP_CACHE is None:
+        # This corpus ships beside the code (fixed path off _DEFAULT_CONFIG_DIR),
+        # so unlike the severity/dictionary bundles it is intentionally NOT
+        # relocated by --config-dir.
+        _BRITISH_MAP_CACHE = _load_british_map(
+            _DEFAULT_CONFIG_DIR / "en-US" / "british-american.txt"
+        )
+    return _BRITISH_MAP_CACHE
+
+
+def _match_case(source, target):
+    """Cast an American suggestion to the source token's capitalization."""
+    if source.isupper():
+        return target.upper()
+    if source[:1].isupper():
+        return target[:1].upper() + target[1:]
+    return target
+
+
+def _is_american_english(language):
+    """True for American-English bundles (and the None default), where British
+    spellings should be flagged. A future en-GB bundle passes 'en-GB' and opts
+    out; the bare-string test callers pass nothing and get the American default."""
+    if language is None:
+        return True
+    return str(language).replace("_", "-").lower().startswith("en-us")
+
 # i18n placeholder masking: {name}, {{name}}, %s, %d, %(name)s (plus flanking whitespace)
 # -> a single space, so masking never manufactures a double space after a period.
 _PLACEHOLDER_RE = re.compile(r"\s*(?:\{\{[^}]*\}\}|\{[^}]*\}|%\([^)]*\)[sd]|%[sd])\s*")
@@ -176,9 +238,28 @@ def _local_match(rule_id, offset, length, message, replacements):
     }
 
 
-def local_matches_text(text):
-    """Scan a prose string for house rules with no free-server rule."""
+def local_matches_text(text, language=None):
+    """Scan a prose string for house rules with no free-server rule.
+
+    ``language`` gates dialect-specific rules; it defaults to American English
+    so the bare-string unit callers keep the British-spelling check.
+    """
     matches = []
+    if _is_american_english(language):
+        mapping = _british_map()
+        for m in _WORD_RE.finditer(text):
+            american = mapping.get(m.group(0).lower())
+            if american is not None:
+                american = _match_case(m.group(0), american)
+                matches.append(
+                    _local_match(
+                        "LOCAL_BRITISH_SPELLING",
+                        m.start(),
+                        m.end() - m.start(),
+                        f"British spelling: prefer American '{american}'.",
+                        [american],
+                    )
+                )
     for m in _EM_DASH_RE.finditer(text):
         matches.append(
             _local_match(
@@ -340,7 +421,7 @@ def check_blocks(blocks, server, bundle):
     # findings (e.g. a spurious double space after a period).
     for block in blocks:
         for content, line in block.children:
-            for match in local_matches_text(content):
+            for match in local_matches_text(content, bundle.get("language")):
                 enriched = dict(match)
                 enriched["line"] = line
                 findings.append(enriched)

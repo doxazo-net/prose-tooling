@@ -42,8 +42,13 @@ disabled_categories = []
 # dictionary flags bare code identifiers (BaseItemDto, golangci-lint, ...) that
 # are not misspellings. Noisy style rules (PASSIVE_VOICE_SIMPLE, readability,
 # wordiness) also stay advisory by being absent here.
+# LOCAL_BRITISH_SPELLING is client-side and en-US-only: a curated, whole-word
+# British->American map (deterministic, low-false-positive). It blocks because
+# MORFOLOGIK spelling is advisory and its dictionary accepts some British
+# variants (catalogue) outright, so neither can enforce American spelling.
 blocking = [
     "LOCAL_EM_DASH",
     "LOCAL_DOUBLE_SPACE",
+    "LOCAL_BRITISH_SPELLING",
     "SERIAL_COMMA_ON",
 ]

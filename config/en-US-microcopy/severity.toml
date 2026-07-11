@@ -17,5 +17,7 @@ disabled_rules = [
 disabled_categories = []
 # Blocking = deterministic rules only. Calibration on stillwater en.json showed
 # ZERO blocking findings (no em-dashes, serial commas already correct), so
-# adoption is frictionless. Spelling stays advisory.
-blocking = ["LOCAL_EM_DASH", "SERIAL_COMMA_ON"]
+# adoption is frictionless. MORFOLOGIK spelling stays advisory; the curated,
+# client-side LOCAL_BRITISH_SPELLING (en-US only) blocks because British spellings
+# in American UI copy are unambiguous and deterministic.
+blocking = ["LOCAL_EM_DASH", "LOCAL_BRITISH_SPELLING", "SERIAL_COMMA_ON"]
