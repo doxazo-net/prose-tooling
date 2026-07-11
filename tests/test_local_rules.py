@@ -65,6 +65,12 @@ def test_british_does_not_flag_substring_of_larger_word():
     assert _british(local_matches_text("The grey sky."))  # but the bare word fires
 
 
+def test_calibre_software_name_not_flagged():
+    # 'Calibre' is the e-book software (product name), excluded via overrides;
+    # it must not be flagged as the British spelling of 'caliber'.
+    assert _british(local_matches_text("Calibre-Web syncs my calibre library.")) == []
+
+
 def test_load_british_map_missing_file_raises(tmp_path):
     import pytest
 

@@ -17,5 +17,10 @@
 + programme program
 + programmes programs
 
-# Exclusions: standard American spellings VarCon may pair as British. Never block.
+# Exclusions: standard American spellings VarCon may pair as British, plus
+# product/proper-noun collisions. Never block.
 - dialogue
+# 'Calibre' is the e-book software (calibre-web, calibre-web-automated, the
+# user's my_calibre_plugins), not the British spelling of 'caliber'. A cross-repo
+# sweep found 700+ legitimate uses; blocking it would fail commits everywhere.
+- calibre
