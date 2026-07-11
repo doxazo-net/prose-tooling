@@ -24,7 +24,8 @@ for arg in "$@"; do
 done
 
 [ -d "${TARGET}" ] || { echo "target is not a directory: ${TARGET}" >&2; exit 2; }
-[ -d "${TARGET}/.git" ] || { echo "target is not a git repo: ${TARGET}" >&2; exit 2; }
+# -e (not -d): a worktree or submodule checkout has .git as a FILE (a gitdir pointer).
+[ -e "${TARGET}/.git" ] || { echo "target is not a git repo: ${TARGET}" >&2; exit 2; }
 TARGET_ABS="$(cd "${TARGET}" && pwd)"
 
 echo "prose-tooling dir : ${TOOLING_DIR}"
@@ -55,8 +56,11 @@ CONFIG_FLAG=""
 if [ "${WITH_CONFIG}" -eq 1 ]; then
 	DESTCFG="${TARGET_ABS}/.prose-lint-config"
 	mkdir -p "${DESTCFG}"
-	# -n: never overwrite an existing file; note skips.
-	cp -Rn "${EXAMPLES}/config/." "${DESTCFG}/"
+	# -n: never overwrite an existing file (preserve adopter edits on re-run).
+	# GNU coreutils >= 9.2 exits non-zero when -n skips a file; that skip is the
+	# intended outcome here, not an error, so tolerate it rather than let `set -e`
+	# abort the run before the hook snippet prints.
+	cp -Rn "${EXAMPLES}/config/." "${DESTCFG}/" || true
 	echo "copied starter config -> ${DESTCFG} (existing files skipped)"
 	CONFIG_FLAG=" --config-dir ${DESTCFG}"
 fi

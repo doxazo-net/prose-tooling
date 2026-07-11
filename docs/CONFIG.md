@@ -9,7 +9,7 @@ doc and the code ever disagree, the code wins.
 
 ## Config directory layout
 
-```
+```text
 <config-dir>/
   dictionary.txt              # global spelling allowlist, merged into every bundle
   <bundle>/severity.toml      # rules + blocking map for one bundle

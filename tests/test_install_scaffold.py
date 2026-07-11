@@ -66,3 +66,21 @@ def test_rerun_preserves_original_custom_config(tmp_path):
     _run(repo)          # run 1: backs up custom -> .bak, writes starter
     _run(repo)          # run 2: starter already present, must not touch .bak
     assert (repo / ".prose-lint.toml.bak").read_text() == "# my custom config\n"
+
+
+def test_rerun_with_config_does_not_abort(tmp_path):
+    # cp -Rn skips pre-existing files on the 2nd run; on GNU coreutils >=9.2 the
+    # skip exits non-zero, which must not abort the run (hook must still print).
+    repo = _git_repo(tmp_path)
+    _run(repo, "--with-config")
+    r = _run(repo, "--with-config")
+    assert r.returncode == 0
+    assert "--config-dir" in r.stdout  # reached the hook-printing step
+
+
+def test_git_file_pointer_accepted(tmp_path):
+    # A worktree/submodule checkout has .git as a FILE, not a directory.
+    (tmp_path / ".git").write_text("gitdir: /somewhere/else\n")
+    r = _run(tmp_path)
+    assert r.returncode == 0
+    assert (tmp_path / ".prose-lint.toml").exists()
