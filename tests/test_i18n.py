@@ -56,11 +56,79 @@ def test_glob_and_exact_key_ignored():
     assert texts == ["This regular copy is checked."]
 
 
-def test_nested_i18n_file_warns_and_does_not_silently_pass(capsys, tmp_path):
+def test_nested_values_flattened_to_dotted_keys():
+    js = (
+        '{\n'
+        '  "section": {\n'
+        '    "title": "Nested value here.",\n'
+        '    "sub": { "deep": "Deeply nested copy." }\n'
+        '  }\n'
+        '}\n'
+    )
+    texts = [b.text for b in extract_i18n(js)]
+    assert "Nested value here." in texts
+    assert "Deeply nested copy." in texts
+
+
+def test_nested_keys_never_checked():
+    js = '{\n  "greeting": { "hello": "Welcome back." }\n}\n'
+    texts = [b.text for b in extract_i18n(js)]
+    assert texts == ["Welcome back."]
+    assert not any("greeting" in t or "hello" in t for t in texts)
+
+
+def test_nested_exact_ignore_applies_to_dotted_key():
+    js = (
+        '{\n'
+        '  "section": {\n'
+        '    "title": "Skip this heading.",\n'
+        '    "body": "Keep this copy."\n'
+        '  }\n'
+        '}\n'
+    )
+    ignore = key_ignorer(["section.title"])
+    texts = [b.text for b in extract_i18n(js, ignore)]
+    assert texts == ["Keep this copy."]
+
+
+def test_nested_glob_ignore_applies_to_dotted_key():
+    js = '{\n  "menu": {\n    "file": { "tooltip": "skip", "label": "Open a file." }\n  }\n}\n'
+    ignore = key_ignorer(["*.tooltip"])
+    texts = [b.text for b in extract_i18n(js, ignore)]
+    assert texts == ["Open a file."]
+
+
+def test_nested_value_line_number():
+    js = '{\n  "section": {\n    "title": "First nested value."\n  }\n}\n'
+    by_text = {b.text: b.base_line for b in extract_i18n(js)}
+    assert by_text["First nested value."] == 3
+
+
+def test_no_string_values_still_warns(capsys, tmp_path):
     import prose_check
-    f = tmp_path / "nested.json"
-    f.write_text('{"section": {"title": "Nested value here."}}\n')
+    f = tmp_path / "novalues.json"
+    f.write_text('{"count": 3, "enabled": true}\n')
     code = prose_check.main(["--no-autostart", "--format", "i18n", str(f)])
     err = capsys.readouterr().err
-    assert code == 2 or code == 1  # non-zero: did not silently pass
-    assert "no flat string values" in err
+    assert code != 0  # non-zero: did not silently pass
+    assert "no checkable string values" in err
+
+
+def test_string_arrays_flattened_with_index_keys():
+    # Locale files use arrays of strings; their prose must be checked too.
+    js = '{\n  "errors": [\n    "Bad input here.",\n    "Try again please."\n  ]\n}\n'
+    texts = [b.text for b in extract_i18n(js)]
+    assert "Bad input here." in texts
+    assert "Try again please." in texts
+
+
+def test_nested_array_of_objects_flattened():
+    js = '{\n  "steps": [\n    { "label": "First step copy." }\n  ]\n}\n'
+    texts = [b.text for b in extract_i18n(js)]
+    assert texts == ["First step copy."]
+
+
+def test_array_index_ignore_glob():
+    js = '{\n  "msgs": [ "Keep this one." ]\n}\n'
+    ignore = key_ignorer(["msgs.*"])
+    assert extract_i18n(js, ignore) == []

@@ -429,31 +429,56 @@ def check_blocks(blocks, server, bundle):
     return findings
 
 
-def check_markdown(markdown_text, server, bundle):
-    """Back-compat wrapper: extract Markdown blocks then run the shared pipeline."""
-    return check_blocks(extract_blocks(markdown_text), server, bundle)
+def _iter_i18n(data, prefix=""):
+    """Yield (dotted_key, string_value) for every string leaf, recursing into
+    nested objects and arrays so {"a": {"b": "x"}} yields ("a.b", "x") and
+    {"a": ["x", "y"]} yields ("a.0", "x"), ("a.1", "y")."""
+    if isinstance(data, dict):
+        for key, value in data.items():
+            dotted = f"{prefix}.{key}" if prefix else str(key)
+            yield from _iter_i18n(value, dotted)
+    elif isinstance(data, list):
+        for index, value in enumerate(data):
+            dotted = f"{prefix}.{index}" if prefix else str(index)
+            yield from _iter_i18n(value, dotted)
+    elif isinstance(data, str):
+        yield prefix, data
+    # Non-string scalar leaves (numbers, bools, null) are not checkable copy.
 
 
-def _value_line(json_text, key):
-    """1-indexed line where a flat JSON key's pair appears."""
-    idx = json_text.find('"' + key + '"')
+def _line_for_key(json_text, dotted_key):
+    """1-indexed line for a (possibly dotted) i18n key. A flat key containing
+    dots ("greeting.hello") appears literally; a nested path ("section.title")
+    is located by walking its quoted parts in order. Best-effort on duplicates,
+    matching the flat behavior it replaces."""
+    idx = json_text.find('"' + dotted_key + '"')
+    if idx < 0:
+        pos = 0
+        for part in dotted_key.split("."):
+            nxt = json_text.find('"' + part + '"', pos)
+            if nxt < 0:
+                break
+            idx, pos = nxt, nxt + len(part) + 1
     if idx < 0:
         return 1
     return json_text.count("\n", 0, idx) + 1
 
 
 def extract_i18n(json_text, ignore=None):
-    """Extract checkable string values from a flat i18n locale JSON as Blocks."""
+    """Extract checkable string values from an i18n locale JSON as Blocks.
+
+    Nested objects are flattened to dotted keys, so both flat and nested locale
+    shapes are checked; keys (flat or dotted) are never checked, only values."""
     ignore = ignore or (lambda key: False)
     data = json.loads(json_text)
     blocks = []
-    for key, value in data.items():
-        if not isinstance(value, str) or ignore(key):
+    for key, value in _iter_i18n(data):
+        if ignore(key):
             continue
         text = _mask_placeholders(value)
         if not text.strip():
             continue
-        line = _value_line(json_text, key)
+        line = _line_for_key(json_text, key)
         blocks.append(Block(text, line, [(text, line)]))
     return blocks
 
@@ -542,8 +567,7 @@ def main(argv=None):
                 blocks = extract_i18n(source, ignore)
                 if not blocks and source.strip():
                     print(
-                        f"prose-check: {path}: no flat string values found "
-                        "(nested locale JSON is not supported yet)",
+                        f"prose-check: {path}: no checkable string values found",
                         file=sys.stderr,
                     )
                     had_blocking = True
