@@ -112,3 +112,23 @@ def test_no_string_values_still_warns(capsys, tmp_path):
     err = capsys.readouterr().err
     assert code != 0  # non-zero: did not silently pass
     assert "no checkable string values" in err
+
+
+def test_string_arrays_flattened_with_index_keys():
+    # Locale files use arrays of strings; their prose must be checked too.
+    js = '{\n  "errors": [\n    "Bad input here.",\n    "Try again please."\n  ]\n}\n'
+    texts = [b.text for b in extract_i18n(js)]
+    assert "Bad input here." in texts
+    assert "Try again please." in texts
+
+
+def test_nested_array_of_objects_flattened():
+    js = '{\n  "steps": [\n    { "label": "First step copy." }\n  ]\n}\n'
+    texts = [b.text for b in extract_i18n(js)]
+    assert texts == ["First step copy."]
+
+
+def test_array_index_ignore_glob():
+    js = '{\n  "msgs": [ "Keep this one." ]\n}\n'
+    ignore = key_ignorer(["msgs.*"])
+    assert extract_i18n(js, ignore) == []

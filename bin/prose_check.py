@@ -431,14 +431,19 @@ def check_blocks(blocks, server, bundle):
 
 def _iter_i18n(data, prefix=""):
     """Yield (dotted_key, string_value) for every string leaf, recursing into
-    nested objects so a locale like {"a": {"b": "x"}} yields ("a.b", "x")."""
+    nested objects and arrays so {"a": {"b": "x"}} yields ("a.b", "x") and
+    {"a": ["x", "y"]} yields ("a.0", "x"), ("a.1", "y")."""
     if isinstance(data, dict):
         for key, value in data.items():
             dotted = f"{prefix}.{key}" if prefix else str(key)
             yield from _iter_i18n(value, dotted)
+    elif isinstance(data, list):
+        for index, value in enumerate(data):
+            dotted = f"{prefix}.{index}" if prefix else str(index)
+            yield from _iter_i18n(value, dotted)
     elif isinstance(data, str):
         yield prefix, data
-    # Non-string leaves (numbers, bools, null) and arrays are not checkable copy.
+    # Non-string scalar leaves (numbers, bools, null) are not checkable copy.
 
 
 def _line_for_key(json_text, dotted_key):
