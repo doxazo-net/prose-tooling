@@ -1,0 +1,7 @@
+  - repo: local
+    hooks:
+      - id: prose-lint
+        name: prose-lint (LanguageTool)
+        entry: __CLIENT__ --lang en-US --
+        language: system
+        files: '\.(md|txt)$'

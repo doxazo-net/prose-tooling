@@ -1,0 +1,22 @@
+# Minimal en-US docs profile -- copy to your own config dir and adapt.
+# See docs/CONFIG.md for every key. Keep `blocking` to deterministic,
+# low-false-positive rules only; leave spelling/style advisory.
+
+language = "en-US"
+level = "picky"
+
+# Rules the free server surfaces that are noisy on technical Markdown.
+disabled_rules = [
+    "EN_QUOTES",
+    "TWO_HYPHENS",
+    "DASH_RULE",
+    "WHITESPACE_RULE",
+]
+disabled_categories = []
+
+# Only deterministic client-side + serial-comma rules fail a commit.
+blocking = [
+    "LOCAL_EM_DASH",
+    "LOCAL_DOUBLE_SPACE",
+    "SERIAL_COMMA_ON",
+]

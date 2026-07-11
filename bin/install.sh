@@ -1,60 +1,89 @@
 #!/usr/bin/env bash
-# install.sh -- print the git-hook wiring to adopt prose-lint in a target repo.
+# install.sh -- scaffold prose-lint config into a target repo and print the hook.
 #
-# By design this PRINTS the snippet and instructions rather than mutating the
-# target repo: incorporation into a repo like stillwater goes through that
-# repo's own PR / review gates, not a side-channel edit. Run it, read it, and
-# paste the snippet into the repo's hook as part of that repo's change.
+# Writes a starter .prose-lint.toml (backing up any existing one), optionally
+# copies a starter config dir with --with-config, and prints the git-hook
+# wiring. It never edits .git/ or an existing hook -- paste the printed snippet
+# as part of the target repo's own change.
 #
-# Usage: install.sh [/path/to/target/repo]
+# Usage: install.sh [/path/to/target/repo] [--with-config]
 set -euo pipefail
 
 TOOLING_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLIENT="${TOOLING_DIR}/.venv/bin/python ${TOOLING_DIR}/bin/prose_check.py"
-TARGET="${1:-.}"
+EXAMPLES="${TOOLING_DIR}/examples"
+
+TARGET="."
+WITH_CONFIG=0
+for arg in "$@"; do
+	case "$arg" in
+		--with-config) WITH_CONFIG=1 ;;
+		-*) echo "unknown option: $arg" >&2; exit 2 ;;
+		*) TARGET="$arg" ;;
+	esac
+done
+
+[ -d "${TARGET}" ] || { echo "target is not a directory: ${TARGET}" >&2; exit 2; }
+# -e (not -d): a worktree or submodule checkout has .git as a FILE (a gitdir pointer).
+[ -e "${TARGET}/.git" ] || { echo "target is not a git repo: ${TARGET}" >&2; exit 2; }
+TARGET_ABS="$(cd "${TARGET}" && pwd)"
 
 echo "prose-tooling dir : ${TOOLING_DIR}"
-echo "target repo       : $(cd "${TARGET}" && pwd)"
+echo "target repo       : ${TARGET_ABS}"
 echo
 
-if [ -f "${TARGET}/.githooks/pre-commit" ]; then
-	MECH="Detected .githooks/pre-commit (core.hooksPath style)."
-elif [ -f "${TARGET}/.pre-commit-config.yaml" ]; then
-	MECH="Detected .pre-commit-config.yaml (pre-commit framework)."
+# 1) Scaffold .prose-lint.toml (never clobber).
+DEST="${TARGET_ABS}/.prose-lint.toml"
+if [ -f "${DEST}" ] && cmp -s "${DEST}" "${EXAMPLES}/.prose-lint.toml"; then
+	echo ".prose-lint.toml already matches the starter; left unchanged."
 else
-	MECH="No known hook mechanism detected; choose one below."
+	if [ -f "${DEST}" ]; then
+		BAK="${DEST}.bak"
+		if [ -e "${BAK}" ]; then
+			n=1
+			while [ -e "${DEST}.bak.${n}" ]; do n=$((n + 1)); done
+			BAK="${DEST}.bak.${n}"
+		fi
+		cp "${DEST}" "${BAK}"
+		echo "backed up existing .prose-lint.toml -> $(basename "${BAK}")"
+	fi
+	cp "${EXAMPLES}/.prose-lint.toml" "${DEST}"
+	echo "wrote ${DEST}"
 fi
-echo "${MECH}"
+
+# 2) Optionally copy a starter config dir (skip pre-existing files).
+CONFIG_FLAG=""
+if [ "${WITH_CONFIG}" -eq 1 ]; then
+	DESTCFG="${TARGET_ABS}/.prose-lint-config"
+	mkdir -p "${DESTCFG}"
+	# -n: never overwrite an existing file (preserve adopter edits on re-run).
+	# GNU coreutils >= 9.2 exits non-zero when -n skips a file; that skip is the
+	# intended outcome here, not an error, so tolerate it rather than let `set -e`
+	# abort the run before the hook snippet prints.
+	cp -Rn "${EXAMPLES}/config/." "${DESTCFG}/" || true
+	echo "copied starter config -> ${DESTCFG} (existing files skipped)"
+	CONFIG_FLAG=" --config-dir ${DESTCFG}"
+fi
 echo
-echo "1) The client auto-starts the container on demand if it is stopped."
-echo "   (First commit after a stop pays a one-time ~15s container start.)"
-echo "   To pre-start or manage it manually:"
-echo "   ${TOOLING_DIR}/bin/prose-lint-server.sh start"
+
+# 3) Detect hook mechanism and print the wiring (single source: examples/hooks).
+if [ -f "${TARGET_ABS}/.githooks/pre-commit" ]; then
+	echo "Detected .githooks/pre-commit (core.hooksPath style)."
+elif [ -f "${TARGET_ABS}/.pre-commit-config.yaml" ]; then
+	echo "Detected .pre-commit-config.yaml (pre-commit framework)."
+else
+	echo "No known hook mechanism detected; choose one below."
+fi
+echo
+echo "The client auto-starts the container on demand if it is stopped."
+echo "To manage it manually: ${TOOLING_DIR}/bin/prose-lint-server.sh start"
 echo
 echo "2a) For a .githooks/pre-commit (bash) repo, add this section:"
-cat <<EOF
-
-# prose-lint -- LanguageTool grammar/prose on staged markdown (central config)
-STAGED_PROSE=\$(git diff --cached --name-only --diff-filter=ACM -- '*.md' '*.txt' || true)
-if [ -n "\$STAGED_PROSE" ]; then
-    if ! PROSE_OUTPUT=\$(echo "\$STAGED_PROSE" | tr '\\n' '\\0' \\
-            | xargs -0 ${CLIENT} --lang en-US -- 2>&1); then
-        echo "FAIL prose-lint:"; echo "\$PROSE_OUTPUT"; exit 1
-    fi
-    echo "\$PROSE_OUTPUT"   # advisories (exit 0)
-fi
-EOF
+echo
+sed "s|__CLIENT__|${CLIENT}${CONFIG_FLAG}|g" "${EXAMPLES}/hooks/githooks-pre-commit.sh"
 echo
 echo "2b) For a pre-commit-framework repo, add a repo: local hook:"
-cat <<EOF
-
-  - repo: local
-    hooks:
-      - id: prose-lint
-        name: prose-lint (LanguageTool)
-        entry: ${CLIENT} --lang en-US --
-        language: system
-        files: '\\.(md|txt)\$'
-EOF
+echo
+sed "s|__CLIENT__|${CLIENT}${CONFIG_FLAG}|g" "${EXAMPLES}/hooks/pre-commit-config.yaml"
 echo
 echo "The client exits 1 on a blocking finding, 2 if the server is unreachable."

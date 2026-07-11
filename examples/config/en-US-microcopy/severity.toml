@@ -1,0 +1,13 @@
+# Minimal en-US microcopy profile for short UI strings / i18n values.
+language = "en-US"
+level = "picky"
+disabled_rules = [
+    "EN_QUOTES",
+    "UPPERCASE_SENTENCE_START",   # UI labels are fragments
+    "PUNCTUATION_PARAGRAPH_END",
+]
+disabled_categories = []
+blocking = [
+    "LOCAL_EM_DASH",
+    "SERIAL_COMMA_ON",
+]
