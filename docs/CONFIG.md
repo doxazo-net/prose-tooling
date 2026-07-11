@@ -17,9 +17,10 @@ doc and the code ever disagree, the code wins.
 ```
 
 A "bundle" is a language/profile pair such as `en-US` or `en-US-microcopy`
-(the client appends `-microcopy` to `--lang` when `--profile microcopy`, or an
-i18n JSON file, is in play). Each bundle is its own directory under the config
-dir; `load_bundle(config_dir, bundle_name)` reads
+(the client appends `-microcopy` to `--lang` when `--profile microcopy` is
+passed, or when an i18n JSON file is checked without an explicit `--profile`).
+Each bundle is its own directory under the config dir;
+`load_bundle(config_dir, bundle_name)` reads
 `<config_dir>/<bundle_name>/severity.toml`.
 
 ## `severity.toml`
@@ -51,8 +52,8 @@ them under a synthetic `LOCAL` category:
   whole-word British-to-American map (`config/en-US/british-american.txt`,
   generated from VarCon/SCOWL, plus house overrides in
   `british-american.overrides.txt`). American-English-only: it fires when the
-  bundle's `language` starts with `en-us` (case-insensitive; the default when
-  no language is set). LanguageTool's own spelling rule
+  bundle's `language` starts with `en-us` (case-insensitive). LanguageTool's
+  own spelling rule
   (`MORFOLOGIK_RULE_EN_US`) cannot fill this role because it is advisory-only
   in this setup and its dictionary accepts some British variants (e.g.
   `catalogue`) outright.
